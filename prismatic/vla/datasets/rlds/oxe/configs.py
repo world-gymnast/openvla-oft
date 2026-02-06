@@ -1,34 +1,34 @@
 """
 configs.py
-
+ 
 Defines per-dataset configuration (kwargs) for each dataset in Open-X Embodiment.
-
+ 
 Configuration adopts the following structure:
     image_obs_keys:
         primary: primary external RGB
         secondary: secondary external RGB
         wrist: wrist RGB
-
+ 
     depth_obs_keys:
         primary: primary external depth
         secondary: secondary external depth
         wrist: wrist depth
-
+ 
     # Always 8-dim =>> changes based on `StateEncoding`
     state_obs_keys:
         StateEncoding.POS_EULER:    EEF XYZ (3) + Roll-Pitch-Yaw (3) + <PAD> (1) + Gripper Open/Close (1)
         StateEncoding.POS_QUAT:     EEF XYZ (3) + Quaternion (4) + Gripper Open/Close (1)
         StateEncoding.JOINT:        Joint Angles (7, <PAD> if fewer) + Gripper Open/Close (1)
-
+ 
     state_encoding: Type of `StateEncoding`
     action_encoding: Type of action encoding (e.g., EEF Position vs. Joint Position)
 """
-
+ 
 from enum import IntEnum
-
+ 
 from prismatic.vla.datasets.rlds.oxe.utils.droid_utils import zero_action_filter
-
-
+ 
+ 
 # Defines Proprioceptive State Encoding Schemes
 class StateEncoding(IntEnum):
     # fmt: off
@@ -38,8 +38,8 @@ class StateEncoding(IntEnum):
     JOINT = 3               # Joint Angles (7, <PAD> if fewer) + Gripper Open/Close (1)
     JOINT_BIMANUAL = 4      # Joint Angles (2 x [ Joint Angles (6) + Gripper Open/Close (1) ])
     # fmt: on
-
-
+ 
+ 
 # Defines Action Encoding Schemes
 class ActionEncoding(IntEnum):
     # fmt: off
@@ -48,8 +48,8 @@ class ActionEncoding(IntEnum):
     JOINT_POS_BIMANUAL = 3  # Joint Delta Position (2 x [ Joint Delta Position (6) + Gripper Open/Close (1) ])
     EEF_R6 = 4              # EEF Delta XYZ (3) + R6 (6) + Gripper Open/Close (1)
     # fmt: on
-
-
+ 
+ 
 # === Individual Dataset Configs ===
 OXE_DATASET_CONFIGS = {
     "fractal20220817_data": {
@@ -84,10 +84,17 @@ OXE_DATASET_CONFIGS = {
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "bridge_dataset": {  # Original version of Bridge V2 from project website
-        "image_obs_keys": {"primary": "image_0", "secondary": "image_1", "wrist": None},
+        "image_obs_keys": {"primary": "image_0", "secondary": None, "wrist": None},
         "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
-        "state_obs_keys": ["EEF_state", "gripper_state"],
-        "state_encoding": StateEncoding.POS_EULER,
+        "state_obs_keys": [],
+        "state_encoding": StateEncoding.NONE,
+        "action_encoding": ActionEncoding.EEF_POS,
+    },
+    "iter_sft_bridge": {  # Ctrl-World dataset (Bridge-style actions, no proprio)
+        "image_obs_keys": {"primary": "image_0", "secondary": None, "wrist": None},
+        "depth_obs_keys": {"primary": None, "secondary": None, "wrist": None},
+        "state_obs_keys": [],
+        "state_encoding": StateEncoding.NONE,
         "action_encoding": ActionEncoding.EEF_POS,
     },
     "taco_play": {
@@ -706,4 +713,6 @@ OXE_DATASET_CONFIGS = {
         "state_encoding": StateEncoding.JOINT_BIMANUAL,
         "action_encoding": ActionEncoding.JOINT_POS_BIMANUAL,
     },
+    
 }
+ 

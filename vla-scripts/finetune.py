@@ -832,27 +832,57 @@ def finetune(cfg: FinetuneConfig) -> None:
 
     # Load processor and VLA
     processor = AutoProcessor.from_pretrained(cfg.vla_path, trust_remote_code=True)
-    vla = AutoModelForVision2Seq.from_pretrained(
-        cfg.vla_path,
-        torch_dtype=torch.bfloat16,
-        low_cpu_mem_usage=True,
-        trust_remote_code=True,
-    ).to(device_id)
 
-    # Set number of images in VLA input
-    vla.vision_backbone.set_num_images_in_input(cfg.num_images_in_input)
+    # When resuming with LoRA, we need to load the original base model + LoRA adapter
+    if cfg.resume and cfg.use_lora:
+        # Load adapter config to get the original base model path
+        adapter_path = os.path.join(cfg.vla_path, "lora_adapter")
+        import json
+        with open(os.path.join(adapter_path, "adapter_config.json"), "r") as f:
+            adapter_config = json.load(f)
+        base_model_path = adapter_config.get("base_model_name_or_path", "openvla/openvla-7b")
 
-    # LoRA setup
-    if cfg.use_lora:
-        lora_config = LoraConfig(
-            r=cfg.lora_rank,
-            lora_alpha=min(cfg.lora_rank, 16),
-            lora_dropout=cfg.lora_dropout,
-            target_modules="all-linear",
-            init_lora_weights="gaussian",
-        )
-        vla = get_peft_model(vla, lora_config)
+        print(f"Resuming from checkpoint: {cfg.vla_path}")
+        print(f"Loading base model from: {base_model_path}")
+        print(f"Loading LoRA adapter from: {adapter_path}")
+
+        # Load the original base model
+        vla = AutoModelForVision2Seq.from_pretrained(
+            base_model_path,
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
+        ).to(device_id)
+
+        # Set number of images in VLA input
+        vla.vision_backbone.set_num_images_in_input(cfg.num_images_in_input)
+
+        # Load the LoRA adapter from the checkpoint
+        vla = PeftModel.from_pretrained(vla, adapter_path, is_trainable=True)
         vla.print_trainable_parameters()
+    else:
+        # Normal loading (not resuming)
+        vla = AutoModelForVision2Seq.from_pretrained(
+            cfg.vla_path,
+            torch_dtype=torch.bfloat16,
+            low_cpu_mem_usage=True,
+            trust_remote_code=True,
+        ).to(device_id)
+
+        # Set number of images in VLA input
+        vla.vision_backbone.set_num_images_in_input(cfg.num_images_in_input)
+
+        # LoRA setup
+        if cfg.use_lora:
+            lora_config = LoraConfig(
+                r=cfg.lora_rank,
+                lora_alpha=min(cfg.lora_rank, 16),
+                lora_dropout=cfg.lora_dropout,
+                target_modules="all-linear",
+                init_lora_weights="gaussian",
+            )
+            vla = get_peft_model(vla, lora_config)
+            vla.print_trainable_parameters()
 
     # FiLM setup
     if cfg.use_film:
@@ -885,6 +915,8 @@ def finetune(cfg: FinetuneConfig) -> None:
         )
 
     # If applicable, instantiate continuous action head for L1 regression
+    # Default to None when using LLaMA-2 LM head (SimpleVLA-RL style)
+    action_head = None
     if cfg.use_l1_regression:
         action_head = init_module(
             L1RegressionActionHead,
