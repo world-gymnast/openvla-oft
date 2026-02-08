@@ -1,19 +1,5 @@
 #!/bin/bash
 
-#SBATCH --account=torch_pr_147_courant
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=200GB
-#SBATCH --gres=gpu:h200:1
-#SBATCH --job-name=OpenVLA-OFT-CTRL-PLUS
-#SBATCH --open-mode=append
-#SBATCH --output=./logs/%x_%j.out
-#SBATCH --error=./logs/%x_%j.err
-#SBATCH --export=ALL
-#SBATCH --time=48:00:00
-#SBATCH --requeue
-
 # Ctrl-World Plus Training Script (Bridge-style SimpleVLA-RL config)
 # This script trains on combined iter_sft_bridge + bridge_dataset
 #
@@ -29,8 +15,8 @@
 NUM_GPUS=1
 
 # Paths
-DATA_ROOT_DIR="/projects/work/yang-lab/projects/pretrain_world_model/oxe_tfds_raw"
-RUN_ROOT_DIR="/scratch/ys4907/checkpoints/openvla-oft/iter_sft_plus_sft_new_lora"
+DATA_ROOT_DIR="bridge_plus_extra_rollouts"
+RUN_ROOT_DIR="openvla_iter_sft"
 
 # Dataset
 DATASET_NAME="iter_sft_plus"
@@ -46,8 +32,8 @@ SAVE_FREQ=10000
 LORA_RANK=32
 
 # Weights & Biases (optional)
-WANDB_ENTITY="yixiangsun"
-WANDB_PROJECT="openvla-ctrl-world-plus-sft"
+WANDB_ENTITY="your_wandb_entity"
+WANDB_PROJECT="openvla-iter-sft"
 RUN_ID_NOTE="iter_sft_plus--lm_head--single_cam--no_proprio"
 
 # ============= LAUNCH TRAINING =============
@@ -67,7 +53,7 @@ echo "============================================"
 echo ""
 
 torchrun --standalone --nnodes 1 --nproc-per-node ${NUM_GPUS} vla-scripts/finetune.py \
-  --vla_path /projects/work/yang-lab/projects/wmrl/openvla-oft-bridge-sft-20000-ctrl-world-sft \
+  --vla_path pretrained_openvla_oft \
   --data_root_dir ${DATA_ROOT_DIR} \
   --dataset_name ${DATASET_NAME} \
   --run_root_dir ${RUN_ROOT_DIR} \
